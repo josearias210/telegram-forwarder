@@ -4,7 +4,6 @@ import sys
 import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
-from datetime import datetime, timedelta
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,10 +37,15 @@ async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = message.from_user.username if message.from_user else None
 
     payload = {
-        "text": message.text,
         "username": username,
         "chat_id": message.chat.id
     }
+
+    if message.text:
+        payload["text"] = message.text
+    elif message.voice:
+        payload["voice"] = message.voice.file_id
+
     try:
         requests.post(WEBHOOK_URL, json=payload, timeout=5)
     except requests.exceptions.Timeout:
@@ -51,6 +55,6 @@ async def forward_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, forward_message))
+    app.add_handler(MessageHandler(filters.TEXT | filters.VOICE, forward_message))
     logging.info("telegram-forwarder is running...")
     app.run_polling(timeout=30, read_timeout=10)
